@@ -22,14 +22,17 @@ main = do putStrLn "Welcome to hangman!"
 
 playGame :: HangmanGame -> IO ()
 playGame game = do letter <- getChar
-                   let newGame = guessLetter (toLower letter) game
-                   putStrLn $ gallows $ misses newGame
-                   putStrLn $ blanks newGame
-                   putStrLn $ intercalate " " [[c] | c <- reverse $ gameGuessed newGame, not (elem c (gameWord game))]
-                   case (gameStatus newGame) of
-                     Won -> putStrLn "You won!"
-                     Lost -> putStrLn ("You lost...the word was " ++ (gameWord game))
-                     InProgress -> playGame newGame
+                   if not $ isAlpha letter
+                   then do putStrLn "Please enter a letter"
+                           playGame game
+                   else do let newGame = guessLetter (toLower letter) game
+                           putStrLn $ gallows $ misses newGame
+                           putStrLn $ blanks newGame
+                           putStrLn $ intercalate " " [[c] | c <- reverse $ gameGuessed newGame, not (elem c (gameWord game))]
+                           case (gameStatus newGame) of
+                             Won -> putStrLn "You won!"
+                             Lost -> putStrLn ("You lost...the word was " ++ (gameWord game))
+                             InProgress -> playGame newGame
 
 totalBodyParts :: Int
 totalBodyParts = 6
