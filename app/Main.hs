@@ -1,6 +1,9 @@
 module Main where
 
 import Data.Set (Set)
+import Data.Char
+import Data.List
+import System.IO
 
 import qualified Data.Set as S
 
@@ -10,22 +13,112 @@ data HangmanGame = HangmanGame
     }
 
 main :: IO ()
-main = undefined
+main = do putStrLn "Welcome to hangman!"
+          hSetBuffering stdin NoBuffering
+          let game = HangmanGame {gameWord = "rabbit", gameGuessed = []}
+          putStrLn $ gallows 0
+          putStrLn $ blanks game
+          playGame game
 
--- guessLetter :: Char -> HangmanGame -> HangmanGame
--- guessLetter c game
---     | ((gameStatus game == Won) || (gameStatus game == Lost)) = game
---     | otherwise =
---         let old_guessed = gameGuessed game
---         in game { gameGuessed = c : old_guessed }
+playGame :: HangmanGame -> IO ()
+playGame game = do letter <- getChar
+                   let newGame = guessLetter (toLower letter) game
+                   putStrLn $ gallows $ misses newGame
+                   putStrLn $ blanks newGame
+                   putStrLn $ intercalate " " [[c] | c <- reverse $ gameGuessed newGame, not (elem c (gameWord game))]
+                   case (gameStatus newGame) of
+                     Won -> putStrLn "You won!"
+                     Lost -> putStrLn ("You lost...the word was " ++ (gameWord game))
+                     InProgress -> playGame newGame
 
-data GameStatus = Won | Lost | InProgress
+totalBodyParts :: Int
+totalBodyParts = 6
 
--- gameStatus :: HangmanGame -> GameStatus
--- gameStatus game =
---     if eachCharIsIn (gameWord game) (gameGuessed game)
---         then Won
---         else undefined
+gallows :: Int -> String
+gallows 0 = "\
+\    _________\n\
+\    |         |\n\
+\    |\n\
+\    |\n\
+\    |\n\
+\    |\n\
+\    |\n\
+\---------"
+gallows 1 = "\
+\    _________\n\
+\    |         |\n\
+\    |         0\n\
+\    |\n\
+\    |\n\
+\    |\n\
+\    |\n\
+\---------"
+gallows 2 = "\
+\    _________\n\
+\    |         |\n\
+\    |         0\n\
+\    |         |\n\
+\    |\n\
+\    |\n\
+\    |\n\
+\---------"
+gallows 3 = "\
+\    _________\n\
+\    |         |\n\
+\    |         0\n\
+\    |         |\n\
+\    |        /\n\
+\    |\n\
+\    |\n\
+\---------"
+gallows 4 = "\
+\    _________\n\
+\    |         |\n\
+\    |         0\n\
+\    |         |\n\
+\    |        / \\\n\
+\    |\n\
+\    |\n\
+\---------"
+gallows 5 = "\
+\    _________\n\
+\    |         |\n\
+\    |         0\n\
+\    |        /|\n\
+\    |        / \\\n\
+\    |\n\
+\    |\n\
+\---------"
+gallows 6 = "\
+\    _________\
+\    |         |\n\
+\    |         0\n\
+\    |        /|\\\n\
+\    |        / \\\n\
+\    |\n\
+\    |\n\
+\---------"
+
+blanks game = intercalate " " [if elem c (gameGuessed game) then [c] else "_" | c <- gameWord game]
+
+guessLetter :: Char -> HangmanGame -> HangmanGame
+guessLetter c game
+    | ((gameStatus game == Won) || (gameStatus game == Lost)) = game
+    | otherwise = game { gameGuessed = c : gameGuessed game }
+
+data GameStatus = Won | Lost | InProgress deriving Eq
+
+gameStatus :: HangmanGame -> GameStatus
+gameStatus game =
+    if eachCharIsIn (gameWord game) (gameGuessed game)
+        then Won
+        else if (misses game) >= totalBodyParts then Lost else InProgress
+
+eachCharIsIn :: String -> [Char] -> Bool
+eachCharIsIn s c = all (\a -> elem a c) s
+
+misses :: HangmanGame -> Int
+misses game = numWrongGuesses (gameWord game) (gameGuessed game)
 
 numWrongGuesses :: String -> [Char] -> Int
 numWrongGuesses word cs = go (S.fromList word) cs
@@ -36,5 +129,7 @@ numWrongGuesses word cs = go (S.fromList word) cs
         | c `S.member` wordChars = go wordChars cs
         | otherwise = 1 + go wordChars cs
 
--- isFinished :: HangmanGame -> Bool
--- isFinished game =
+isFinished :: HangmanGame -> Bool
+isFinished game = case gameStatus game of
+    InProgress -> False
+    otherwise -> True
